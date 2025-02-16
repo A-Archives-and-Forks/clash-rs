@@ -195,23 +195,6 @@ jobs:
             target: i686-unknown-freebsd
             tool: cross
             extra-args: -F "shadowsocks, tuic"
-          # Android
-          - os: ubuntu-latest
-            target: aarch64-linux-android
-            tool: cross
-            extra-args: -F "shadowsocks, tuic, onion"
-          - os: ubuntu-latest
-            target: armv7-linux-androideabi
-            tool: cross
-            extra-args: -F "shadowsocks, tuic, onion"
-          - os: ubuntu-latest
-            target: x86_64-linux-android
-            tool: cross
-            extra-args: -F "shadowsocks, tuic, onion"
-          - os: ubuntu-latest
-            target: i686-linux-android
-            tool: cross
-            extra-args: -F "shadowsocks, tuic, onion"
           # Linux mips: tier-3, pity
           # Windows gnu: tokio dont work
           # Windows aarch: todo
