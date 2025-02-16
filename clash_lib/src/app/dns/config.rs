@@ -10,7 +10,7 @@ use regex::Regex;
 
 use serde::Deserialize;
 use url::Url;
-use watfaq_dns::{DNSListenAddr, DoH3Config, DoHConfig, DoTConfig};
+pub use watfaq_dns::{DNSListenAddr, DoH3Config, DoHConfig, DoTConfig};
 
 use crate::{
     common::trie,

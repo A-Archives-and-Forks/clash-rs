@@ -8,6 +8,9 @@ use std::sync::Arc;
 #[cfg(test)]
 use mockall::automock;
 
+#[cfg(feature = "internal")]
+pub mod config;
+#[cfg(not(feature = "internal"))]
 mod config;
 mod dhcp;
 mod dns_client;

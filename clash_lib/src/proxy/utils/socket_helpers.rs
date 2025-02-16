@@ -1,12 +1,14 @@
-use std::{io, net::SocketAddr, time::Duration};
+use std::{io, net::SocketAddr, ops::Deref, sync::Arc, time::Duration};
 
+use arc_swap::ArcSwap;
+use once_cell::sync::Lazy;
 use socket2::TcpKeepalive;
 use tokio::{
     net::{TcpSocket, TcpStream, UdpSocket},
     time::timeout,
 };
 
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 
 use super::{platform::must_bind_socket_on_interface, Interface};
 
@@ -58,9 +60,16 @@ pub async fn new_tcp_stream(
         ),
     };
 
+    #[cfg(not(target_os = "android"))]
     if let Some(iface) = iface {
         debug!("binding tcp socket to interface: {:?}", iface);
         must_bind_socket_on_interface(&socket, &iface, family)?;
+    }
+    #[cfg(target_os = "android")]
+    {
+        use std::os::fd::AsRawFd;
+        trace!("protecting socket fd: {}", socket.as_raw_fd());
+        protect_socket(socket.as_raw_fd()).expect("empty socket protector");
     }
 
     #[cfg(target_os = "linux")]
@@ -111,7 +120,7 @@ pub async fn new_udp_socket(
             socket2::Domain::IPV4,
         ),
     };
-
+    #[cfg(not(target_os = "android"))]
     match (src, iface) {
         (Some(_), Some(iface)) => {
             debug!("both src and iface are set, iface will be used: {:?}", src);
@@ -137,14 +146,42 @@ pub async fn new_udp_socket(
             debug!("not binding socket to any address or interface");
         }
     }
-
+    #[cfg(target_os = "android")]
+    {
+        use std::os::fd::AsRawFd;
+        trace!("protecting socket fd: {}", socket.as_raw_fd());
+        protect_socket(socket.as_raw_fd()).expect("empty socket protector");
+    }
     #[cfg(target_os = "linux")]
     if let Some(so_mark) = so_mark {
         socket.set_mark(so_mark)?;
     }
 
+
     socket.set_broadcast(true)?;
     socket.set_nonblocking(true)?;
 
     UdpSocket::from_std(socket.into())
+}
+
+pub trait SocketProtector: Send + Sync {
+    fn protect(&self, fd: i32);
+}
+
+static SOCKET_PROTECTOR: Lazy<ArcSwap<Option<Arc<dyn SocketProtector>>>> =
+    Lazy::new(|| ArcSwap::from_pointee(None));
+
+pub fn set_socket_protector(protector: Arc<dyn SocketProtector>) {
+    SOCKET_PROTECTOR.store(Arc::new(Some(protector)));
+}
+
+pub fn protect_socket(fd: i32) -> anyhow::Result<()> {
+    let guard = SOCKET_PROTECTOR.load();
+    let protector = match guard.deref().deref() {
+        Some(f) => f.clone(),
+        None => return Err(anyhow!("Socket protector not set but invoked!")),
+    };
+    drop(guard);
+    protector.protect(fd);
+    Ok(())
 }

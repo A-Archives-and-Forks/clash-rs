@@ -303,6 +303,9 @@ mod tests {
 
 pub struct General {
     pub inbound: Inbound,
+    #[cfg(feature = "internal")]
+    pub controller: Controller,
+    #[cfg(not(feature = "internal"))]
     pub(crate) controller: Controller,
     pub mode: RunMode,
     pub log_level: LogLevel,
