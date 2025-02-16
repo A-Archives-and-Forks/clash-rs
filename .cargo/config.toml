@@ -1,6 +1,6 @@
 [build]
 target-dir = "target"
 rustflags = ["--cfg", "tokio_unstable"]
-
+#target = "aarch64-linux-android"
 [env]
 RUST_LOG = { value = "clash=trace" }

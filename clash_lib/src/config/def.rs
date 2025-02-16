@@ -31,7 +31,7 @@ pub struct TunConfig {
     #[serde(default = "default_tun_address")]
     pub gateway: String,
     pub routes: Option<Vec<String>>,
-    #[serde(default)]
+    #[serde(default, alias = "auto-route")]
     pub route_all: bool,
     pub mtu: Option<u16>,
     /// fwmark on Linux only
