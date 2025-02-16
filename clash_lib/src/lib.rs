@@ -34,13 +34,23 @@ use tokio::{
 };
 use tracing::{debug, error, info};
 
+#[cfg(feature = "internal")]
+pub mod app;
+#[cfg(not(feature = "internal"))]
 mod app;
+
 mod common;
+
 #[cfg(feature = "internal")]
 pub mod config;
 #[cfg(not(feature = "internal"))]
 mod config;
+
+#[cfg(feature = "internal")]
+pub mod proxy;
+#[cfg(not(feature = "internal"))]
 mod proxy;
+
 mod session;
 
 use crate::common::geodata;
