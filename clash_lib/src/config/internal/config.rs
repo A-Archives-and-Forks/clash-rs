@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 
-use std::{fmt::Display, net::IpAddr, str::FromStr};
+use std::{
+    fmt::Display,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    str::FromStr,
+};
 
-use ipnet::IpNet;
+pub use ipnet::IpNet;
 use serde::{de::value::MapDeserializer, Deserialize, Serialize};
 use serde_yaml::Value;
 
@@ -100,7 +104,10 @@ impl TryFrom<def::Config> for Config {
                 ipv6: c.ipv6,
                 interface: c.interface.as_ref().map(|iface| {
                     if let Ok(addr) = iface.parse::<IpAddr>() {
-                        Interface::IpAddr(addr)
+                        match addr {
+                            IpAddr::V4(addr) => Interface::IpAddr(Some(addr), None),
+                            IpAddr::V6(addr) => Interface::IpAddr(None, Some(addr)),
+                        }
                     } else {
                         Interface::Name(iface.to_string())
                     }
@@ -351,10 +358,7 @@ impl Display for BindAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BindAddress::Any => write!(f, "*"),
-            BindAddress::One(one) => match one {
-                Interface::IpAddr(ip) => write!(f, "{}", ip),
-                Interface::Name(name) => write!(f, "{}", name),
-            },
+            BindAddress::One(one) => one.fmt(f),
         }
     }
 }
@@ -365,14 +369,15 @@ impl FromStr for BindAddress {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "*" => Ok(Self::Any),
-            "localhost" => {
-                Ok(Self::One(Interface::IpAddr(IpAddr::from([127, 0, 0, 1]))))
-            }
+            "localhost" => Ok(Self::One(Interface::IpAddr(
+                Some(Ipv4Addr::new(127, 0, 0, 1)),
+                Some(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)), // ::1
+            ))),
             _ => {
                 if let Ok(ip) = s.parse::<IpAddr>() {
-                    Ok(BindAddress::One(Interface::IpAddr(ip)))
+                    Ok(BindAddress::One(ip.into()))
                 } else {
-                    Ok(BindAddress::One(Interface::Name(s.to_string())))
+                    Ok(BindAddress::One(s.into()))
                 }
             }
         }

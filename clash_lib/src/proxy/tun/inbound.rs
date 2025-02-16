@@ -16,8 +16,9 @@ use crate::{
     common::errors::{map_io_error, new_io_error},
     config::internal::config::TunConfig,
     proxy::{
-        datagram::UdpPacket, tun::routes::maybe_add_routes,
-        utils::get_outbound_interface,
+        datagram::UdpPacket,
+        tun::routes::maybe_add_routes,
+        utils::{get_outbound_interface, Interface},
     },
     session::{Network, Session, Type},
     Error, Runner,
@@ -41,7 +42,9 @@ async fn handle_inbound_stream(
         source: local_addr,
         destination: remote_addr.into(),
         iface: get_outbound_interface()
-            .map(|x| crate::proxy::utils::Interface::Name(x.name))
+            .map(|x| {
+                Interface::Name(x.name)
+            })
             .inspect(|x| {
                 debug!(
                     "selecting outbound interface: {:?} for tun TCP connection",

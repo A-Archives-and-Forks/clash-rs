@@ -12,10 +12,7 @@ use futures::FutureExt;
 use network_interface::{Addr, NetworkInterfaceConfig};
 use tracing::{info, warn};
 
-use std::{
-    net::{IpAddr, Ipv4Addr},
-    sync::Arc,
-};
+use std::{net::Ipv4Addr, sync::Arc};
 
 #[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub enum ListenerType {
@@ -78,11 +75,12 @@ impl NetworkInboundListener {
                 }
             }
             BindAddress::One(iface) => match iface {
-                Interface::IpAddr(ip) => match ip {
-                    IpAddr::V4(ip) => {
+                Interface::IpAddr(v4, v6) => match (v4, v6) {
+                    (Some(ip), _) => {
                         self.build_and_insert_listener(&mut runners, *ip)
                     }
-                    IpAddr::V6(_) => unreachable!("unsupported listening v6"),
+                    (None, Some(_)) => unreachable!("unsupported listening v6"),
+                    _ => unreachable!("listen address not exists"),
                 },
                 Interface::Name(iface) => {
                     let ip = network_interface::NetworkInterface::show()

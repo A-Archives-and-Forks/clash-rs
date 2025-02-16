@@ -1,5 +1,5 @@
 use network_interface::NetworkInterfaceConfig;
-use std::{io, net::SocketAddr, os::windows::io::AsRawSocket};
+use std::{io, net::{SocketAddr, SocketAddrV4, SocketAddrV6}, os::windows::io::AsRawSocket};
 use tracing::{debug, error, warn};
 use windows::Win32::{
     Foundation::GetLastError,
@@ -16,7 +16,18 @@ pub(crate) fn must_bind_socket_on_interface(
     family: socket2::Domain,
 ) -> io::Result<()> {
     match iface {
-        Interface::IpAddr(ip) => socket.bind(&SocketAddr::new(*ip, 0).into()),
+        Interface::IpAddr(v4, v6) => match family {
+            socket2::Domain::IPV4 => {
+                let addr = v4.ok_or(io::ErrorKind::AddrNotAvailable)?;
+
+                socket.bind(&SocketAddrV4::new(addr, 0).into())
+            }
+            socket2::Domain::IPV6 => {
+                let addr = v6.ok_or(io::ErrorKind::AddrNotAvailable)?;
+                socket.bind(&SocketAddrV6::new(addr, 0, 0, 0).into())
+            }
+            _ => unreachable!(),
+        },
         Interface::Name(name) => {
             // TODO: we should avoid calling `show` multiple times
             let iface = network_interface::NetworkInterface::show()

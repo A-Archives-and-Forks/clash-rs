@@ -20,6 +20,7 @@ use crate::{
         inbound::manager::{Ports, ThreadSafeInboundManager},
     },
     config::{def, internal::config::BindAddress},
+    proxy::utils::Interface,
     GlobalState,
 };
 
@@ -72,8 +73,11 @@ async fn get_configs(State(state): State<ConfigState>) -> impl IntoResponse {
         allow_lan: Some(match inbound_manager.get_bind_address() {
             BindAddress::Any => true,
             BindAddress::One(one) => match one {
-                crate::proxy::utils::Interface::IpAddr(ip) => !ip.is_loopback(),
-                crate::proxy::utils::Interface::Name(iface) => iface != "lo",
+                Interface::IpAddr(v4, v6) => {
+                    v4.map_or(false, |v| v.is_global())
+                        || v6.map_or(false, |v| v.is_global())
+                }
+                Interface::Name(iface) => iface != "lo",
             },
         }),
     })
