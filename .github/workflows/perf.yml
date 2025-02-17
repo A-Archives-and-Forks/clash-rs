@@ -1,0 +1,84 @@
+name: Performance Benchmark
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  performance-test:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'perf')
+    
+    steps:
+    - name: Checkout PR code
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        path: 'pr-code'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y iperf3 jq bc
+
+    - name: Build and test HEAD version
+      working-directory: ./pr-code
+      run: |
+
+        cargo run --release -- --port 1080 &
+        CLIENT_PID=$!
+        
+        sleep 5
+        
+        iperf3 -c ${{ secrets.IPERF_SERVER }} --socks5 127.0.0.1:1080 -t 20 -J > head_results.json
+
+        kill $CLIENT_PID || true
+
+    - name: Checkout base version
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.base.ref }}
+        path: 'base-code'
+
+    - name: Build and test BASE version
+      working-directory: ./base-code
+      run: |
+        cargo run --release -- --port 1080 &
+        CLIENT_PID=$!
+        
+        sleep 5
+        
+        iperf3 -c ${{ secrets.IPERF_SERVER }} --socks5 127.0.0.1:1080 -t 20 -J > head_results.json
+
+        kill $CLIENT_PID || true
+
+    - name: Compare results
+      run: |
+        # 提取带宽数据
+        head_bw=$(jq -r '.end.sum_received.bits_per_second' pr-code/head_results.json)
+        base_bw=$(jq -r '.end.sum_received.bits_per_second' base-code/base_results.json)
+        
+        # 计算差异
+        diff_bw=$(echo "$head_bw - $base_bw" | bc)
+        percent_diff=$(echo "scale=2; ($diff_bw / $base_bw) * 100" | bc)
+        
+        # 格式化结果
+        printf "## Performance Comparison\n" > comparison.md
+        printf "**Base version (main):** %.2f Mbps\n" $(echo "$base_bw/1000000" | bc -l) >> comparison.md
+        printf "**PR version:** %.2f Mbps\n" $(echo "$head_bw/1000000" | bc -l) >> comparison.md
+        printf "**Difference:** %.2f Mbps (%.2f%%)\n" $(echo "$diff_bw/1000000" | bc -l) $percent_diff >> comparison.md
+        
+        # 保存结果供后续步骤使用
+        echo "RESULT=$(cat comparison.md)" >> $GITHUB_ENV
+
+    - name: Post results
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const { RESULT } = process.env;
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: RESULT
+          });
