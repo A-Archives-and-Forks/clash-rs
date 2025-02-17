@@ -10,7 +10,7 @@
 
 A custom protocol, rule based network proxy software.
 
-[![CI](https://github.com/Watfaq/clash-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/Watfaq/clash-rs/actions/workflows/ci.yml) [![codecov](https://codecov.io/github/Watfaq/clash-rs/graph/badge.svg?token=ZQK5WB63KR)](https://codecov.io/github/Watfaq/clash-rs)
+[![CI](https://github.com/Watfaq/clash-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/Watfaq/clash-rs/actions/workflows/ci.yml) [![codecov](https://codecov.io/github/Watfaq/clash-rs/graph/badge.svg?token=ZQK5WB63KR)](https://app.codecov.io/github/Watfaq/clash-rs/tree/master/)
 
 </div>
 
